@@ -1,6 +1,6 @@
 'use strict';
 
-const logTools = require('debug')('module:tools');
+const logExclude = require('debug')('mixin:exclude');
 function to(promise) { return promise.then(data => { return [null, data]; }).catch(err => [err]); }
 
 // For security reasons sometimes we might want to exclude certain fields from the client
@@ -9,7 +9,7 @@ module.exports = function ExcludeModelFields(Model) {
     let role = null;
     Model.afterRemote('*', function (ctx, modelInstance, next) {
         (async (next) => {
-            logTools("ExcludeModelFields mixin is now launched", Model.name);
+            logExclude("ExcludeModelFields mixin is now launched", Model.name);
             if (!ctx || !ctx.result || typeof ctx.result !== "object") return next();
 
             const userId = ctx.req && ctx.req.accessToken && ctx.req.accessToken.userId;
@@ -22,13 +22,13 @@ module.exports = function ExcludeModelFields(Model) {
                     deleteExcludedFields(field, Model);
                 }
 
-                logTools("after delete ctx.result", ctx.result);
+                logExclude("after delete ctx.result", ctx.result);
                 return next();
             }
 
             field = (ctx.result && ctx.result.__data) || ctx.result;
             deleteExcludedFields(field, Model);
-            logTools("after delete ctx.result", ctx.result);
+            logExclude("after delete ctx.result", ctx.result);
 
             return next();
         })(next);
@@ -36,7 +36,7 @@ module.exports = function ExcludeModelFields(Model) {
 
     function deleteExcludedFields(field, M) {
         const modelName = M.name;
-        logTools("deleteExcludedFields is launched with model '%s'", modelName);
+        logExclude("deleteExcludedFields is launched with model '%s'", modelName);
         let eModelFields = [...M.definition.settings.excludeFields]; // We can get eModelFields from modelProperties
         if (!field || !eModelFields) return;
 
@@ -64,7 +64,7 @@ module.exports = function ExcludeModelFields(Model) {
             //Delete field if it is supposed to be excluded
             if (eModelFields.includes(key)) {
                 delete field[key];
-                logTools("ExcludeModelFields on Model '%s' deleted key '%s'", modelName, key);
+                logExclude("ExcludeModelFields on Model '%s' deleted key '%s'", modelName, key);
             }
 
             //Go over relations to check if they have fields that need to be excluded
@@ -73,11 +73,11 @@ module.exports = function ExcludeModelFields(Model) {
             for (let Rname in modelR) {
                 if (key === Rname) {
                     const R = modelR[Rname];
-                    logTools("R.modelTo.name", R.modelTo.name);
+                    logExclude("R.modelTo.name", R.modelTo.name);
 
                     let newField = null;
                     if (Array.isArray(field[key])) {
-                        logTools("Field found was array");
+                        logExclude("Field found was array");
                         for (const element of field[key]) {
                             newField = (element && element.__data || element);
                             deleteExcludedFields(newField, R.modelTo);
@@ -85,7 +85,7 @@ module.exports = function ExcludeModelFields(Model) {
                         continue;
                     }
 
-                    logTools("Field found was object");
+                    logExclude("Field found was object");
 
                     newField = (field[key] && field[key].__data || field[key]);
                     deleteExcludedFields(newField, R.modelTo)
@@ -100,16 +100,16 @@ module.exports = function ExcludeModelFields(Model) {
             fields: { roleId: true },
             include: 'role'
         }));
-        if (rmRoleErr) { logTools("error finding user role from rolemapping", rmRoleErr); return; }
+        if (rmRoleErr) { logExclude("error finding user role from rolemapping", rmRoleErr); return; }
 
-        logTools("user role from rolemapping: rmRole", rmRole)
-        if (!(rmRole && rmRole.role && rmRole.role.name)) { logTools("no user role found, try %s..."); return; }
+        logExclude("user role from rolemapping: rmRole", rmRole)
+        if (!(rmRole && rmRole.role && rmRole.role.name)) { logExclude("no user role found, try %s..."); return; }
 
         let userRole = null;
         try {
             const parsedRmRole = JSON.parse(JSON.stringify(rmRole));
             userRole = parsedRmRole && parsedRmRole.role && parsedRmRole.role.name;
-        } catch (err) { logTools("Could not parse rmRole into object, userRole, err", userRole, err); return; }
+        } catch (err) { logExclude("Could not parse rmRole into object, userRole, err", userRole, err); return; }
 
         return userRole;
     }

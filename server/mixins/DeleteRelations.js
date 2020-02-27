@@ -7,13 +7,13 @@
  */
 
 //to run with debug data: DEBUG=module:tools node directory;
-const logTools = require('debug')('module:tools');
+const logSuperModel = require('debug')('module:supermodel');
 const to = function (promise) { return promise.then(data => { return [null, data]; }).catch(err => [err]); };
 const path = require('path');
 const fs = require('fs');
 const fileModels = ["Images", "Files", "Audio", "Video"];
 
-module.exports = function deleteRelations(Model, options) {
+module.exports = function DeleteRelations(Model, options) {
     Model.deleteRelationalById = (id, next) => {
         (async (next) => {
             let error = null;
@@ -47,36 +47,36 @@ module.exports = function deleteRelations(Model, options) {
                     const nextModel = (R.modelThrough ? R.modelThrough : R.modelTo);
                     const foreignKey = R.keyTo;
                     const where = { [foreignKey]: { inq: ids } };
-                    logTools("model: ", nextModel.name, "where", where);
+                    logSuperModel("model: ", nextModel.name, "where", where);
                     const [findErr, res] = await to(nextModel.find({ where: where }));
                     if (findErr) setError(findErr);
                     if (!res) continue;
                     const foundInstances = res.map(instance => instance.id);
-                    logTools("foundInstances: ", foundInstances);
+                    logSuperModel("foundInstances: ", foundInstances);
                     if (foundInstances.length === 0) continue;
                     const handledInstances = [...handledModelInstances, nextModel.name];
                     //We want this function to run from leaf to root so we call it first on the next level
                     await deleteInstances(nextModel, foundInstances, handledInstances, setError);
-                    logTools("modelNext", nextModel.name);
+                    logSuperModel("modelNext", nextModel.name);
                     if (fileModels.includes(nextModel.name)) await deleteFileById(foundInstances, nextModel);
                     const [deleteErr, deleteRes] = await to(nextModel.destroyAll(where));
                     if (deleteErr) setError(deleteErr);
-                    logTools("delete res: ", deleteRes);
+                    logSuperModel("delete res: ", deleteRes);
                     break;
-                default: logTools("We do not support relation type: %s in model %s", R.type, model.name);//!make sure log works %s
+                default: logSuperModel("We do not support relation type: %s in model %s", R.type, model.name);//!make sure log works %s
             }
         }
     }
 
     const deleteFileById = async (fileIds, Model) => {
-        logTools("deleteFileById is launched now with fileIds: ", fileIds);
+        logSuperModel("deleteFileById is launched now with fileIds: ", fileIds);
 
         let [findFileErr, findFileRes] = await to(Model.find({
             where: { id: { inq: fileIds } }
         }));
 
         if (findFileErr || !findFileRes) {
-            logTools("Error finding previous file path", findFileErr);
+            logSuperModel("Error finding previous file path", findFileErr);
             return null;
         }
 
@@ -85,19 +85,19 @@ module.exports = function deleteRelations(Model, options) {
 
         let filePath = null;
         for (let file of findFileRes) {
-            logTools("file is", file);
+            logSuperModel("file is", file);
             filePath = file.path;
             if (!isProd) filePath = filePath.replace('http://localhost:8080', '');
 
             try {
                 const fullFilePath = path.join(__dirname, `${baseFileDirPath}${filePath}`);
-                logTools("fullfilepath", fullFilePath);
+                logSuperModel("fullfilepath", fullFilePath);
                 if (!fs.existsSync(fullFilePath)) continue;
                 fs.unlinkSync(fullFilePath);
-                logTools("File with path %s was successfully removed (deleted)", fullFilePath);
+                logSuperModel("File with path %s was successfully removed (deleted)", fullFilePath);
                 continue;
             } catch (err) {
-                logTools("Error deleting file", err);
+                logSuperModel("Error deleting file", err);
                 return err;
             }
         }
