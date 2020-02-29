@@ -7,15 +7,16 @@ const CREATED = 'created';
 const times = ['created', 'modified', 'lastUpdated', 'last_updated'];
 
 module.exports = function GenerateInstanceTimes(Model) {
-    Model.afterRemote('*', function (ctx, modelInstance, next) {
+
+    Model.observe('after save', function (ctx, next) {
+
         (async (next) => {
-            logSuperModel("Generate instance time is launched now with model '%s' ", Model.name, ctx.req.method);
-            if (ctx.req.method !== "POST" && ctx.req.method !== "PUT" && ctx.req.method !== "PATCH")
-                return next();
+            logSuperModel("Generate instance time is launched now with model '%s' ", Model.name/*, ctx.req.method*/);
 
-            logSuperModel("modelInstance", modelInstance, modelInstance && modelInstance.id);
-
-            if (!modelInstance || !modelInstance.id) return next();
+            const instance = ctx && ctx.instance;
+            logSuperModel("Ctx.instance is ", instance);
+            const instanceId = instance && ctx.instance.id;
+            if (!instanceId) return next();
 
             let mp = Model.definition.properties; //modelProperties
             if (!mp || typeof mp !== "object") return next();
@@ -27,7 +28,7 @@ module.exports = function GenerateInstanceTimes(Model) {
             if (!tp || tp.length === 0) return next();
             logSuperModel("Time properties found in model properties are ", tp);
 
-            let [mFindErr, mFindRes] = await to(Model.findOne({ where: { id: modelInstance.id }, fields: tp }));
+            let [mFindErr, mFindRes] = await to(Model.findOne({ where: { id: instanceId }, fields: tp }));
             if (mFindErr || !mFindRes) { logSuperModel("error finding model instance", mFindErr); return next(); }
 
             logSuperModel("Model instance result with the time properties fields is ", mFindRes);
@@ -46,23 +47,26 @@ module.exports = function GenerateInstanceTimes(Model) {
             }
             if (!tp || tp.length === 0) return next();
 
-            await Model.saveTimes(tp, modelInstance.id);
+            await Model.saveTimes(tp, instanceId);
 
             return next();
         })(next);
 
-        Model.saveTimes = async function (tp, instanceId) {
-            const now = getTimezoneDatetime(Date.now());
-
-            let tpObject = {};
-            for (const key of tp) { tpObject[key] = now; }
-            logSuperModel("Time properties object to upsert into model '%s' is: ", Model.name, tpObject);
-
-            let [mUpsertErr, mUpsertRes] = await to(Model.upsertWithWhere({ id: instanceId }, tpObject))
-            if (mUpsertErr || !mUpsertRes) return logSuperModel("Error upserting time to model '%s' with error: ", Model.name, mUpsertErr);
-            logSuperModel("Success upserting times to model '%s' with res", Model.name, mUpsertRes);
-        }
     });
+
+    Model.saveTimes = async function (tp, instanceId) {
+        const now = getTimezoneDatetime(Date.now());
+
+        let tpObject = {};
+        for (const key of tp) { tpObject[key] = now; }
+        logSuperModel("Time properties object to upsert into model '%s' is: ", Model.name, tpObject);
+
+        // let [mUpsertErr, mUpsertRes] = await to(Model.upsertWithWhere({ id: instanceId }, tpObject))
+        let [mUpsertErr, mUpsertRes] = await to(Model.updateAll({ id: instanceId }, tpObject))
+        if (mUpsertErr || !mUpsertRes) return logSuperModel("Error upserting time to model '%s' with error: ", Model.name, mUpsertErr);
+        logSuperModel("Success upserting times to model '%s' with res", Model.name, mUpsertRes);
+    }
+
 }
 
 // accepts: d - date
