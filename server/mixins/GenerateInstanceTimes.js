@@ -4,7 +4,7 @@ const logSuperModel = require('debug')('module:super');
 function to(promise) { return promise.then(data => { return [null, data]; }).catch(err => [err]); }
 
 const CREATED = 'created';
-const times = ['created', 'modified', 'lastUpdated', 'last_updated'];
+const times = ['created', 'modified', 'lastUpdated', 'last_updated', 'updated'];
 
 module.exports = function GenerateInstanceTimes(Model) {
 
