@@ -69,6 +69,9 @@ module.exports = function GenerateInstanceTimes(Model) {
 
 }
 
+
+//TODO Shira - put this function in tools module
+
 // accepts: d - date
 //          useOffset - if we want to use israel's timezone
 // returns: datetime with format to post to database
