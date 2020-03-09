@@ -1,7 +1,8 @@
 'use strict';
 
 const logSuperModel = require('debug')('module:super');
-function to(promise) { return promise.then(data => { return [null, data]; }).catch(err => [err]); }
+const to = function (promise) { return promise.then(data => { return [null, data]; }).catch(err => [err]); };
+const TimeCalcs = require('./../../../tools/server/lib/TimeCalcs.js');
 
 const CREATED = 'created';
 const times = ['created', 'modified', 'lastUpdated', 'last_updated', 'updated'];
@@ -55,7 +56,7 @@ module.exports = function GenerateInstanceTimes(Model) {
     });
 
     Model.saveTimes = async function (tp, instanceId) {
-        const now = getTimezoneDatetime(Date.now());
+        const now = TimeCalcs.getTimezoneDatetime(Date.now());
 
         let tpObject = {};
         for (const key of tp) { tpObject[key] = now; }
@@ -68,53 +69,3 @@ module.exports = function GenerateInstanceTimes(Model) {
     }
 
 }
-
-
-//TODO Shira - put this function in tools module
-
-// accepts: d - date
-//          useOffset - if we want to use israel's timezone
-// returns: datetime with format to post to database
-function getTimezoneDatetime(d = Date.now(), useOffset = true) {
-    // from this format -> 2/7/2020, 9:46:11
-    // to this format   -> 2020-02-07T09:37:36.000Z
-    if (!useOffset) { return new Date(d); }
-    let now = new Date(d).toLocaleString("en-US", { timeZone: "Asia/Jerusalem", hour12: false });
-    let nowArr = now.split(", ");
-    let dateArr = nowArr[0].split("/");
-    let month = dateArr[0].length === 2 ? dateArr[0] : "0" + dateArr[0];
-    let day = dateArr[1].length === 2 ? dateArr[1] : "0" + dateArr[1];
-    let date = dateArr[2] + "-" + month + "-" + day;
-    let time = nowArr[1];
-    let datetime = date + "T" + time + ".000Z";
-    datetime = new Date(datetime);
-    return datetime;
-}
-
-
-
-/*
-
-model               created         modified            other           relevant
-_____________________________________________________________________________________
-
-ACL                 no              no                  no              no
-AccessToken         yes             no                  no              ?
-Audio               yes             yes                 no              yes
-CustomUser          no              no                  no              yes
-Files               yes             yes                 no              yes
-Images              yes             yes                 no              yes
-Notification        yes             yes                 no              yes
-NotificationsMap    yes             yes                 no              no
-Role                yes             yes                 no              no (?)
-RoleMapping         no              no                  no              ?
-User                yes             no                  lastUpdated     no (?)
-Video               yes             yes                 no              yes
-access_logger       yes             no                  no              no (?)
-offers              yes             no                  last_updated    yes
-offers_users        yes             no                  last_updated    yes
-passwords           yes             no                  no              no (?)
-records_permissions no              no                  no              ?
-schools             yes             no                  last_updated    yes
-
-*/
