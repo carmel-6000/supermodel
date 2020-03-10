@@ -85,7 +85,7 @@ models/customuser.js
 
 ***Question and/or Suggestions***
 
-Chanah Emunah Deitch - year 2020
+Chanah Emunah D - year 2020
 
 
 
@@ -150,8 +150,50 @@ The values of this `array` can be
 
 > What does the mixin do?
 
-The mixin is an `afterRemote('*', ...)`. Which means, it is triggered after every method. 
+The mixin is an `afterRemote('*', ...)`. Which means, it is triggered after every method. It goes over the data returned to the client and removes the fields we don't want to client to recieve according to the excludeFields you defined in the [model].json file.
+
+**NOTE**: The excluded fields can still be used in your remote methods, they are removed only from the result returned to the client. So don't worry about that (:
 
 
+***Question and/or Suggestions***
+
+Shira Rabi - year 2020
+
+
+
+3. **Generate Instance Times**
+
+The generate instance times mixin automatically adds a ```created, modified``` to you model.
+
+
+***How to use it?***
+
+a. Go to the [MODEL].json file.
+
+b. Apply the ```GenerateInstanceTimes``` mixin
+
+\\ex. 
+    "mixins": {
+        "GenerateInstanceTimes": true
+    },
+
+
+***How it works?***
+
+> What does the mixin do?
+
+This mixin is an ```Model.observe('after save', ...)```. 
+If you want- check in the internet to know when it is triggered.
+
+- It adds a ```created``` to each model instance if it was just created.
+- It adds a ```modified``` to each model instance when it is modified.
+    * This supports: ```modified, lastUpdated, last_updated, updated```.
+
+**NOTE**: This mixin supports only the fields mentioned above. If you table doens't have them as columns, the code will skip updating them (and won't crash).
+
+
+***Question and/or Suggestions***
+
+Shira Rabi - year 2020
 
 
