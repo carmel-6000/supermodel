@@ -39,7 +39,7 @@ module.exports = function ExcludeModelFields(Model) {
         logExclude("deleteExcludedFields is launched with model '%s'", modelName);
 
         if (!M.definition || !M.definition.settings || !M.definition.settings.excludeFields ||
-            Array.isArray(M.definition.settings.excludeFields)) return;
+            !Array.isArray(M.definition.settings.excludeFields)) return;
         let eModelFields = [...M.definition.settings.excludeFields]; // We can get eModelFields from modelProperties
         if (!field || !eModelFields) return;
 
