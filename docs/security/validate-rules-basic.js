@@ -11,7 +11,7 @@ module.exports = {
         password: {
             type: "string",
             format: {
-                pattern: '/^(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])[a-zA-Z0-9!@#$%^&*().~`\[\]{}\|\\-_=+<>:"?]{6,}$/',
+                pattern: '^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&#^().~`\\[\\]{}\\|\\\\-_=+<>:"?])[A-Za-z\\d@$!%*?&#^().~`\\[\\]{}\\|\\\\-_=+<>:"?]{8,}$',
                 message: "invalid password",
                 flags: ""
             }
@@ -82,8 +82,8 @@ module.exports = {
         roleId: { type: "number" },
     },
     Other: {
-        int:{
-            type:"number"
+        int: {
+            type: "number"
         },
         tinyInt: {
             type: "number",
@@ -100,13 +100,20 @@ module.exports = {
             type: "string",
             format: { pattern: '^(first|second)' }
         },
-        date: {
+        date1: {
             type: "date"
         },
-        anotherDate: {
+        date2: {
             type: "string",
             format: {
                 pattern: '^[TZ0-9-:._]*',
+                flags: ""
+            }
+        },
+        date3: {
+            type: "string",
+            format: {
+                patters: '([0-9]{4}[-][0-9]{2}[-][0-9]{2}[T][0-9]{2}[:][0-9]{2}[:][0-9]{2}[.](000Z))',
                 flags: ""
             }
         }
