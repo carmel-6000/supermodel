@@ -81,7 +81,7 @@ module.exports = function DeleteRelations(Model, options) {
         }
 
         const isProd = process.env.NODE_ENV == 'production';
-        const baseFileDirPath = isProd ? '../../../../../build' : '../../../../../public';
+        const baseFileDirPath = '../../../../../public';
 
         let filePath = null;
         for (let file of findFileRes) {
