@@ -21,7 +21,8 @@ module.exports = function DeleteRelations(Model, options) {
             const [findInitErr, findInit] = await to(Model.findById(id));
             if (!findInit) return next({ error: `no such id in ${Model.name}` });
             if (findInitErr) setError(findInitErr);
-            await deleteInstances(Model, [id], [], setError);
+            const changeToNull = Model.definition.settings.deleteRelationsById;
+            await deleteInstances(Model, [id], [], setError, changeToNull);
             //destroy initial instance by id: 
             let [deleteInitialErr, deleteInitial] = await to(Model.destroyById(id));
             if (deleteInitialErr) setError(deleteInitialErr);
@@ -35,7 +36,7 @@ module.exports = function DeleteRelations(Model, options) {
      * @param handledModelInstances (array) avoid infinate loop by checking if in this cycle the model was already checked
      * @param setError (function) for collecting all errors from function in one place 
      */
-    const deleteInstances = async (model, ids, handledModelInstances, setError) => {
+    const deleteInstances = async (model, ids, handledModelInstances, setError, changeToNull) => {
         if (!model || handledModelInstances.includes(model.name)) return;
         const modelR = model.relations;
         if (!modelR) return;
@@ -58,10 +59,21 @@ module.exports = function DeleteRelations(Model, options) {
                     //We want this function to run from leaf to root so we call it first on the next level
                     await deleteInstances(nextModel, foundInstances, handledInstances, setError);
                     logSuperModel("modelNext", nextModel.name);
-                    if (fileModels.includes(nextModel.name)) await deleteFileById(foundInstances, nextModel);
-                    const [deleteErr, deleteRes] = await to(nextModel.destroyAll(where));
-                    if (deleteErr) setError(deleteErr);
-                    logSuperModel("delete res: ", deleteRes);
+                    if (changeToNull.includes(nextModel.name)) {
+                        if (!where || !Object.keys(where).length > 0) continue;
+                        const [deleteErr, deleteRes] = await to(nextModel.update(where, { [foreignKey]: null }));
+                        logSuperModel("deleteRes: ", deleteRes, "model", nextModel.name, "err", deleteErr);
+                        if (deleteErr) setError(deleteErr);
+                    }
+                    else {
+                        //We want this function to run from leaf to root so we call it first on the next level
+                        await deleteInstances(nextModel, foundInstances, handledInstances, setError, changeToNull);
+                        logSuperModel("going to destroy all", where);
+                        if (fileModels.includes(nextModel.name)) await deleteFileById(foundInstances, nextModel);
+                        const [deleteErr, deleteRes] = await to(nextModel.destroyAll(where));
+                        logSuperModel("deleteRes", deleteRes);
+                        if (deleteErr) setError(deleteErr);
+                    }
                     break;
                 default: logSuperModel("We do not support relation type: %s in model %s", R.type, model.name);//!make sure log works %s
             }

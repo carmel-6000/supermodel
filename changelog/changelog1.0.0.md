@@ -23,6 +23,19 @@ Use the function ```deleteRelationalById(id, next)```
         * id    - number    - the id of the row in Model you want to delete
         * next  - function  - a callback function (usually cb/next)
 
+***options for delete***
+Sometimes we only want to delete an ouoter object but the inner should turn to null.
+example for delete all:
+    we want to delete a group from model Group, thus we will want all group participants deleted where groupId = deletedGroupId.
+example for switching to null:
+    in the group (from pre example) we want to keep participants so we will change group id=null.
+The first example is the default. 
+If you want the second behavior, add a key to the model:
+{name:"Group",
+...
+deleteRelationalById:["name of model to turn to null instead of deleting", "another one"],
+...
+}
 
 ***How it works?***
 
