@@ -36,7 +36,7 @@ module.exports = function DeleteRelations(Model, options) {
      * @param handledModelInstances (array) avoid infinate loop by checking if in this cycle the model was already checked
      * @param setError (function) for collecting all errors from function in one place 
      */
-    const deleteInstances = async (model, ids, handledModelInstances, setError, changeToNull) => {
+    const deleteInstances = async (model, ids, handledModelInstances, setError, changeToNull = []) => {
         if (!model || handledModelInstances.includes(model.name)) return;
         const modelR = model.relations;
         if (!modelR) return;
