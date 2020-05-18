@@ -16,6 +16,7 @@ const fileModels = ["Images", "Files", "Audio", "Video"];
 module.exports = function DeleteRelations(Model, options) {
     Model.deleteRelationalById = (id, next) => {
         (async (next) => {
+            logSuperModel("I am :", Model.name);
             let error = null;
             const setError = err => error = err;
             const [findInitErr, findInit] = await to(Model.findById(id));
@@ -37,15 +38,20 @@ module.exports = function DeleteRelations(Model, options) {
      */
     const deleteInstances = async (model, ids, handledModelInstances, setError) => {
         if (!model || handledModelInstances.includes(model.name)) return;
+        logSuperModel("we are with model: ", model.name);
         const modelR = model.relations;
         if (!modelR) return;
         for (let Rname in modelR) {
             const R = modelR[Rname];
             switch (R.type) {
-                case "belongsTo": break;
+                case "belongsTo":{
+                    logSuperModel(Rname,"belongs to - aborting", model.name);
+                    break;
+                } 
                 case "hasOne": case "hasMany":
                     const nextModel = (R.modelThrough ? R.modelThrough : R.modelTo);
-                    const foreignKey = R.keyTo;
+                    const foreignKey = R.keyThrough ? R.keyThrough : R.keyTo;
+                    logSuperModel( "relation: ", R.name, "foreignkey:", foreignKey);
                     const where = { [foreignKey]: { inq: ids } };
                     logSuperModel("model: ", nextModel.name, "where", where);
                     const [findErr, res] = await to(nextModel.find({ where: where }));
