@@ -45,14 +45,14 @@ module.exports = function DeleteRelations(Model, options) {
         for (let Rname in modelR) {
             const R = modelR[Rname];
             switch (R.type) {
-                case "belongsTo":{
-                    logSuperModel(Rname,"belongs to - aborting", model.name);
+                case "belongsTo": {
+                    logSuperModel(Rname, "belongs to - aborting", model.name);
                     break;
-                } 
+                }
                 case "hasOne": case "hasMany":
                     const nextModel = (R.modelThrough ? R.modelThrough : R.modelTo);
-                    const foreignKey = R.keyThrough ? R.keyThrough : R.keyTo;
-                    logSuperModel( "relation: ", R.name, "foreignkey:", foreignKey);
+                    const foreignKey = R.keyTo;
+                    logSuperModel("relation: ", R.name, "foreignkey:", foreignKey);
                     const where = { [foreignKey]: { inq: ids } };
                     logSuperModel("model: ", nextModel.name, "where", where);
                     const [findErr, res] = await to(nextModel.find({ where: where }));
@@ -61,9 +61,8 @@ module.exports = function DeleteRelations(Model, options) {
                     const foundInstances = res.map(instance => instance.id);
                     logSuperModel("foundInstances: ", foundInstances);
                     if (foundInstances.length === 0) continue;
-                    const handledInstances = [...handledModelInstances, nextModel.name];
+                    const handledInstances = [...handledModelInstances, model.name];
                     //We want this function to run from leaf to root so we call it first on the next level
-                    await deleteInstances(nextModel, foundInstances, handledInstances, setError);
                     logSuperModel("modelNext", nextModel.name);
                     if (changeToNull.includes(nextModel.name)) {
                         if (!where || !Object.keys(where).length > 0) continue;
