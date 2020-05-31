@@ -20,16 +20,16 @@ module.exports = function DeleteRelations(Model, options) {
             let error = null;
             const setError = err => error = err;
             const [findInitErr, findInit] = await to(Model.findById(id));
-            if (!findInit) return next({ error: `no such id in ${Model.name}` });
+            if (!findInit) return next ? next({ error: `no such id in ${Model.name}` }) : { error: `no such id in ${Model.name}` };
             if (findInitErr) setError(findInitErr);
             const JSONdata = Model.definition.settings.deleteRelationsById || {};
             const changeToNull = JSONdata.toNull;
             const continueBelongsTo = JSONdata.continueBelongsTo;
-            await deleteInstances(Model, [id], [], setError, changeToNull, continueBelongsTo);
+            await deleteInstances(Model, [findInit], [], setError, changeToNull, continueBelongsTo);
             //destroy initial instance by id: 
             let [deleteInitialErr, deleteInitial] = await to(Model.destroyById(id));
             if (deleteInitialErr) setError(deleteInitialErr);
-            return next(error, { success: 1 })
+            return next ? next(error, { success: 1 }) : [error, { success: 1 }];
         })(next)
     }
 
@@ -46,35 +46,37 @@ module.exports = function DeleteRelations(Model, options) {
         if (!modelR) return;
         for (let Rname in modelR) {
             const R = modelR[Rname];
+            logSuperModel("relation: ", R.name, "type", R.type);
             switch (R.type) {
                 case "belongsTo": {
                     //if has relation.hasone try deleting it
                     if (continueBelongsTo.includes((R.modelThrough ? R.modelThrough : R.modelTo).name))
-                       await continueRecursion(R,ids, model.name,handledModelInstances, setError, changeToNull, continueBelongsTo);
+                        await continueRecursion(R, ids, model.name, handledModelInstances, setError, changeToNull, continueBelongsTo);
                     else logSuperModel(Rname, "belongs to - aborting", model.name);
                     break;
                 }
                 case "hasOne": case "hasMany":
-                    await continueRecursion(R,ids,model.name, handledModelInstances, setError, changeToNull, continueBelongsTo);
+                    await continueRecursion(R, ids, model.name, handledModelInstances, setError, changeToNull, continueBelongsTo);
 
                     break;
                 default: logSuperModel("We do not support relation type: %s in model %s", R.type, model.name);//!make sure log works %s
             }
         }
     }
-    const continueRecursion = async (R, ids,name,handledModelInstances, setError, changeToNull, continueBelongsTo) => {
+    const continueRecursion = async (R, ids, name, handledModelInstances, setError, changeToNull, continueBelongsTo) => {
         const nextModel = (R.modelThrough ? R.modelThrough : R.modelTo);
         const foreignKey = R.keyTo;
-        logSuperModel("relation: ", R.name, "foreignkey:", foreignKey);
-        const where = { [foreignKey]: { inq: ids } };
+        logSuperModel("from", name, "to", nextModel.name, "relation: ", R.name, "foreignkey:", foreignKey, "keyFrom", R.keyFrom);
+        const where = { [foreignKey]: { inq: ids.map(instance => instance[R.keyFrom]) } };
         logSuperModel("model: ", nextModel.name, "where", where);
         const [findErr, res] = await to(nextModel.find({ where: where }));
         if (findErr) setError(findErr);
         if (!res) return;
-        const foundInstances = res.map(instance => instance.id);
+        logSuperModel("key from :", R.keyFrom);
+        const foundInstances = res;//.map(instance => instance[R.keyFrom]);
         logSuperModel("foundInstances: ", foundInstances);
         if (foundInstances.length === 0) return;
-        const handledInstances = [...handledModelInstances, nextModel.name];
+        const handledInstances = [...handledModelInstances, name];
         //We want this function to run from leaf to root so we call it first on the next level
         logSuperModel("modelNext", nextModel.name);
         if (changeToNull.includes(nextModel.name)) {
@@ -84,10 +86,12 @@ module.exports = function DeleteRelations(Model, options) {
             if (deleteErr) setError(deleteErr);
         }
         else {
+            logSuperModel("HI there");
             //We want this function to run from leaf to root so we call it first on the next level
-            await deleteInstances(nextModel, foundInstances, handledInstances, setError, changeToNull,continueBelongsTo);
-            logSuperModel("going to destroy all", where, "in model: ",nextModel.name);
-            if (fileModels.includes(nextModel.name)) await deleteFileById(foundInstances, nextModel);
+            await deleteInstances(nextModel, foundInstances, handledInstances, setError, changeToNull, continueBelongsTo);
+            logSuperModel("going to destroy all", where, "in model: ", nextModel.name);
+            logSuperModel("foundInstances: ", foundInstances, "R.keyTo: ", R.keyTo);
+            if (fileModels.includes(nextModel.name)) await deleteFileById(foundInstances.map(instance => instance[R.keyTo]), nextModel);
             const [deleteErr, deleteRes] = await to(nextModel.destroyAll(where));
             logSuperModel("deleteRes", deleteRes);
             if (deleteErr) setError(deleteErr);
@@ -112,7 +116,10 @@ module.exports = function DeleteRelations(Model, options) {
         for (let file of findFileRes) {
             logSuperModel("file is", file);
             filePath = file.path;
-            if (!isProd) filePath = filePath.replace('http://localhost:8080', '');
+            if (!isProd) {
+                const port = Model.app.get("port");
+                filePath = filePath.replace(`http://localhost:${port}`, '');
+            }
 
             try {
                 const fullFilePath = path.join(__dirname, `${baseFileDirPath}${filePath}`);
