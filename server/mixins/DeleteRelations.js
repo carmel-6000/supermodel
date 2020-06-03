@@ -91,13 +91,13 @@ module.exports = function DeleteRelations(Model, options) {
             await deleteInstances(nextModel, foundInstances, handledInstances, setError, changeToNull, continueBelongsTo);
             logSuperModel("going to destroy all", where, "in model: ", nextModel.name);
             logSuperModel("foundInstances: ", foundInstances, "R.keyTo: ", R.keyTo);
-            if (fileModels.includes(nextModel.name)) await deleteFileById(foundInstances.map(instance => instance[R.keyTo]), nextModel);
+            if (fileModels.includes(nextModel.name)) await Model.deleteFileById(foundInstances.map(instance => instance[R.keyTo]), nextModel);
             const [deleteErr, deleteRes] = await to(nextModel.destroyAll(where));
             logSuperModel("deleteRes", deleteRes);
             if (deleteErr) setError(deleteErr);
         }
     }
-    const deleteFileById = async (fileIds, Model) => {
+    Model.deleteFileById = async (fileIds) => {
         logSuperModel("deleteFileById is launched now with fileIds: ", fileIds);
 
         let [findFileErr, findFileRes] = await to(Model.find({
