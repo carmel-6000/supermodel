@@ -26,8 +26,12 @@ module.exports = function DeleteRelations(Model, options) {
             const changeToNull = JSONdata.toNull;
             const continueBelongsTo = JSONdata.continueBelongsTo;
             await deleteInstances(Model, [findInit], [], setError, changeToNull, continueBelongsTo);
+
+            let [deleteInitialErr, deleteInitial] = [null, null];
+            if (fileModels.includes(Model.name)) deleteInitialErr = await deleteFile([id], Model);
+
             //destroy initial instance by id: 
-            let [deleteInitialErr, deleteInitial] = await to(Model.destroyById(id));
+            [deleteInitialErr, deleteInitial] = await to(Model.destroyById(id));
             if (deleteInitialErr) setError(deleteInitialErr);
             return next ? next(error, { success: 1 }) : [error, { success: 1 }];
         })(next)
@@ -63,6 +67,7 @@ module.exports = function DeleteRelations(Model, options) {
             }
         }
     }
+
     const continueRecursion = async (R, ids, name, handledModelInstances, setError, changeToNull, continueBelongsTo) => {
         const nextModel = (R.modelThrough ? R.modelThrough : R.modelTo);
         const foreignKey = R.keyTo;
@@ -91,12 +96,34 @@ module.exports = function DeleteRelations(Model, options) {
             await deleteInstances(nextModel, foundInstances, handledInstances, setError, changeToNull, continueBelongsTo);
             logSuperModel("going to destroy all", where, "in model: ", nextModel.name);
             logSuperModel("foundInstances: ", foundInstances, "R.keyTo: ", R.keyTo);
-            if (fileModels.includes(nextModel.name)) await Model.deleteFileById(foundInstances.map(instance => instance[R.keyTo]), nextModel);
+            if (fileModels.includes(nextModel.name)) await deleteFile(foundInstances.map(instance => instance[R.keyTo]), nextModel);
             const [deleteErr, deleteRes] = await to(nextModel.destroyAll(where));
             logSuperModel("deleteRes", deleteRes);
             if (deleteErr) setError(deleteErr);
         }
     }
+
+    const deleteFile = async (fileIds, Model) => {
+        logSuperModel("deleteFile is launched");
+        let FileModel = Model.app.models[Model.name];
+        let err = null;
+        FileModel.overrideDeleteFile && typeof FileModel.overrideDeleteFile === "function" ?
+            err = await FileModel.overrideDeleteFile(fileIds, FileModel) :
+            err = await Model.deleteFileById(fileIds, FileModel);
+
+        // Delete records_permissions
+        const rpModel = Model.app.models.RecordsPermissions;
+        for (let id of fileIds) {
+            let [fErr, fRes] = await to(rpModel.find({ where: { recordId: id } }));
+            if (fErr || !fRes || !fRes[0]) return logSuperModel("No records_permissions for %s id %s", Model.name, id);
+            let [err, res] = await to(rpModel.destroyById(fRes[0].id));
+            if (err || !res) return logSuperModel("Error deleting records_permissions of %s id %s", Model.name, id);
+            logSuperModel("records_permissions of %s id %s", Model.name, id, "was successfully deleted");
+        }
+
+        return err;
+    }
+
     Model.deleteFileById = async (fileIds) => {
         logSuperModel("deleteFileById is launched now with fileIds: ", fileIds);
 
